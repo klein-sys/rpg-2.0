@@ -16,6 +16,12 @@ Open [dist/index.html](dist/index.html) in a current desktop browser. Keep the d
 
 Amber circles warn of steam bursts and spikes. Red arrows warn of creature lunges. Walk around danger, dash through it, or face a creature and strike within reach. At zero health, choose **Retry checkpoint**. Checkpoints are recorded when you enter a floor and when its bridge aligns. Each ladder starts the next floor at full health. Supply chests on the deeper floors restore one heart when opened while injured. **Resume** preserves the current run. **Continue** restores the saved checkpoint. Volume controls persist in browsers that allow local storage.
 
+## Deploy on Vercel
+
+Import this GitHub repository in Vercel and leave **Root Directory** at the repository root. The included `vercel.json` selects the **Other** framework preset, skips install and build, and publishes `dist`. Select **Deploy**. The game opens at the deployment's root URL.
+
+For an existing Vercel project, check its root directory and redeploy the latest commit from `main`.
+
 ## Classroom demo
 
 1. Start a new run. Point out the camp marker, the objective, and the dash cooldown. Follow the lanterns east.
