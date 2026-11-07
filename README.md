@@ -1,0 +1,28 @@
+# Slopefall · The Seam of Ash
+
+A short single-player top-down browser adventure for MATH 101. Learn the controls at Lantern Camp, then descend through Lantern Causeway, the Spikeworks, and the Hollow Vault. Align each bridge, take the ladders down, and recover the Ember Lens.
+
+## Run and play
+
+Open [dist/index.html](dist/index.html) in a current desktop browser. Keep the dist/assets folder beside the HTML file for the title artwork. The game has no external dependencies. To play on Android, serve the dist folder over HTTP or HTTPS and open that address in the phone browser. The game fills the viewport. Settings includes a Fullscreen toggle where the browser permits it.
+
+| Action | Desktop | Touch |
+| --- | --- | --- |
+| Move | WASD or arrow keys | Left thumbstick |
+| Interact | E | Interact |
+| Dash | Space | Dash |
+| Strike | J | Attack |
+| Pause or go back | Esc | Pause or Back |
+
+Amber circles warn of steam bursts and spikes. Red arrows warn of shade lunges. Walk around danger, dash through it, or face a shade and strike within reach. At zero health, choose **Retry checkpoint**. Checkpoints are recorded when you enter a floor and when its bridge aligns. Each ladder starts the next floor at full health. **Resume** preserves the current run. **Continue** restores the saved checkpoint. Volume controls persist in browsers that allow local storage.
+
+## Classroom demo
+
+1. Start a new run. Point out the camp marker, the objective, and the dash cooldown. Follow the lanterns east.
+2. At the bridge, leave the lever at **b = 0**. Walk east along the left deck and try crossing. Show the two edge markers and the blocked seam.
+3. Open **How it works** on the lever or read the stone tablet. For x < 2, the profile is f(x) = x + 1. For x ≥ 2, it is f(x) = x + b. At b = 0 the left-hand limit is 3 and the right-hand limit is 2. The two-sided limit does not exist, so the crossing stays closed.
+4. Set **b = 1**. The right deck rises and both one-sided limits equal 3. Since the function is defined at the seam and f(2) = 3, the profile is continuous at x = 2. Wait for the deck to lock, cross, and interact with the ladder. Repeat the mechanic on the deeper floors and retrieve the lens in the Hollow Vault. Setting **b = 2** puts the right edge at 4 and also blocks the crossing.
+
+## Credits
+
+Original game, character sprites, map, interface, sound effects, and synthesized looping score created for Slopefall. The lantern knight title illustration was generated for this game. The art direction draws on the compact top-down readability of Soul Knight and the shadowed atmosphere of Hollow Knight. Course references are MATH 101 Chapter 4, *Limits and Continuity*, and the *Semestral Project Guidelines*. Basic Trigonometric Derivatives is reserved as a separate concept for a future revision.

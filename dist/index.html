@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101820">
+<title>Slopefall | The Seam of Ash</title>
+<meta name="description" content="Explore a lantern-lit ruin and repair its bridge in a top-down adventure about limits and continuity.">
+<style>
+:root{color-scheme:dark;--ink:#121b23;--line:#42605e;--paper:#e7f3de;--mint:#a5e3b8;--dim:#a2b9b3;--gold:#f5c588}
+*{box-sizing:border-box}
+body{margin:0;background:#101820;color:var(--paper);font:15px system-ui,sans-serif;overflow:hidden}
+[hidden]{display:none!important}
+#game{position:relative;width:100%;height:100vh;height:100dvh;overflow:hidden;background:#101820}
+canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+button{font:700 14px ui-monospace,monospace;color:inherit;background:#213039;border:1px solid var(--line);border-radius:3px;min-height:44px;padding:8px 12px;cursor:pointer;touch-action:manipulation}
+button:hover,button:focus-visible{border-color:var(--mint);outline:2px solid #a5e3b850;outline-offset:2px}button:disabled{opacity:.45;cursor:default}
+.primary{background:var(--mint);color:#152720;border-color:var(--mint)}
+#hud{position:absolute;inset:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) auto max(10px,env(safe-area-inset-left));display:flex;gap:8px;align-items:start;pointer-events:none}
+#hud button{pointer-events:auto}#objective{flex:1;max-width:410px}#pause{margin-left:auto}
+.chip{padding:8px 10px;border:1px solid #527069;background:#121e24ed;border-radius:3px}
+.tag{color:var(--mint);font:700 10px ui-monospace,monospace;letter-spacing:.15em;text-transform:uppercase}
+#goal{margin-top:4px;font-weight:650}#hp{color:#ffa79a;white-space:nowrap}#skill-state{white-space:nowrap;color:var(--mint)}
+#status{position:absolute;bottom:max(16px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:max-content;max-width:94%;text-align:center;pointer-events:none}
+#prompt{font-weight:750;color:var(--gold);margin-bottom:3px}#notice{color:#e5eee1}#hints{font-size:12px;color:var(--dim);margin-top:4px}
+#touch{position:absolute;inset:auto max(10px,env(safe-area-inset-right)) max(9px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));display:none;align-items:end;justify-content:space-between;pointer-events:none;user-select:none}
+#stick{width:102px;height:102px;border:2px solid #658a80;border-radius:50%;position:relative;background:#15272bd9;touch-action:none;pointer-events:auto}
+#knob{position:absolute;left:calc(50% - 18px);top:calc(50% - 18px);width:36px;height:36px;border-radius:50%;background:#9bd3b9;border:2px solid #d9f5dd;pointer-events:none}
+#actions{display:flex;align-items:end;gap:8px;pointer-events:auto}#actions button{min-width:49px;min-height:52px;touch-action:none}#interact{color:var(--gold)}@media(max-width:365px){#actions{gap:4px}#actions button{padding:5px;font-size:12px}#stick{width:85px;height:85px}}
+#overlay:has(.lever-panel){place-items:end center;background:transparent;pointer-events:none}.lever-panel{pointer-events:auto;width:min(430px,100%)}.lever-panel p{margin:.3em 0}.lever-panel .panel-menu{grid-template-columns:1fr 1fr;margin-top:0}.lever-panel .dial{margin:7px 0}#overlay{position:absolute;inset:0;display:grid;place-items:center;padding:12px;background:linear-gradient(115deg,#080e15df,#09131bb5);overflow:auto}
+.panel{width:min(460px,100%);max-height:100%;overflow:auto;background:#15232bee;border:1px solid var(--line);border-top:3px solid var(--mint);padding:clamp(14px,4vw,30px);box-shadow:0 16px 60px #060c15b0}
+h1,h2{font-family:ui-monospace,monospace;margin:.25em 0 .38em;line-height:1.08}h1{font-size:clamp(33px,8vw,64px);letter-spacing:-.08em}h2{font-size:clamp(21px,5vw,32px)}
+p{line-height:1.45;color:#c3d4cc;margin:.55em 0 .85em}.panel strong,code{color:var(--gold)}.panel-menu{display:grid;gap:7px;margin-top:14px}
+label{display:grid;grid-template-columns:1fr auto;align-items:center;gap:5px;margin:9px 0;color:var(--dim)}input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--mint);margin:0;min-height:26px}
+.dial{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}.dial [aria-pressed=true]{background:var(--gold);color:#241c14}.calculus{width:min(560px,100%)}
+body.touch #touch:not([hidden]){display:flex}body.touch #hints{display:none}body.touch #status{bottom:max(116px,calc(env(safe-area-inset-bottom) + 108px))}
+@media(max-width:480px){#hud{gap:5px}.chip{padding:6px}#goal{font-size:12px}#skill-state{font-size:12px}#pause{padding:5px 7px}.tag{letter-spacing:.08em}}
+@media(max-height:460px){#stick{width:84px;height:84px}body.touch #status{bottom:max(94px,calc(env(safe-area-inset-bottom) + 90px))}.panel{padding:12px 17px}.panel-menu{gap:4px;margin-top:7px}.panel-menu button{min-height:37px}}
+#overlay.home{
+  place-items:center start;
+  padding:clamp(24px,7vw,112px);
+  background:linear-gradient(90deg,#130b20c9 0%,#130b2070 37%,transparent 68%),
+    linear-gradient(0deg,#130b2088,transparent 35%),
+    #1a1126 url('assets/lantern-knight.webp') 68% center/cover no-repeat;
+}
+#overlay.home .panel{
+  width:min(100%,625px);padding:4px;box-shadow:none;background:none;border:0;overflow-x:hidden;
+}
+.home .tag{color:#edb789;letter-spacing:.25em;font-size:11px}
+.home h1{
+  margin:.16em 0 .03em;font:900 clamp(44px,7vw,104px)/.9 Georgia,serif;
+  text-transform:uppercase;letter-spacing:-.07em;color:#fbe8c8;
+  text-shadow:0 4px #54282e,0 8px 26px #120818;
+}
+.home .subtitle{
+  margin:.65em 0 1em;color:#ffca96;font:700 clamp(12px,1.5vw,17px) ui-monospace,monospace;
+  text-transform:uppercase;letter-spacing:.29em;display:flex;align-items:center;gap:.6em;
+}
+.home .subtitle::after{content:'';width:3em;height:1px;background:#c38066}
+.home p{max-width:32ch;color:#f2d9c7;text-shadow:0 2px 5px #110719}
+.home .panel-menu{width:min(100%,282px);gap:7px;margin-top:20px}
+.home .panel-menu button{
+  text-align:left;text-transform:uppercase;letter-spacing:.12em;
+  border-color:#94615d;background:#28172ce8;color:#f9e2ce;padding-left:15px;
+}
+.home .panel-menu button::before{content:'◆';font-size:9px;margin-right:12px;color:#e0a079}
+.home .panel-menu button.primary{background:#edb588;color:#251721;border-color:#ffe1bb}
+.home .panel-menu button.primary::before{color:#662f36}
+.home .panel-menu button:hover:not(:disabled),.home .panel-menu button:focus-visible{
+  border-color:#ffe0b7;outline-color:#ffd7a666;
+}
+@media (max-width:630px) and (orientation:portrait){
+  #overlay.home{place-items:end start;padding:22px max(21px,env(safe-area-inset-left)) max(22px,env(safe-area-inset-bottom));
+    background:linear-gradient(0deg,#170d21 6%,#170d21f5 24%,#170d21ae 44%,transparent 69%),
+      #1a1126 url('assets/lantern-knight.webp') 72% 9%/auto 72% no-repeat;
+  }
+  .home h1{font-size:clamp(43px,13vw,75px)}
+  .home p{margin:.35em 0 .6em}
+  .home .panel-menu{width:100%;grid-template-columns:1fr 1fr;margin-top:10px}
+  .home .panel-menu button{font-size:11px;padding:8px 9px}
+  .home .panel-menu button::before{margin-right:6px}
+}
+@media (max-height:480px) and (orientation:landscape){
+  #overlay.home{padding:12px 5vw}
+  .home h1{font-size:clamp(42px,8vw,74px)}
+  .home .subtitle{margin:.35em 0}
+  .home .panel-menu{grid-template-columns:1fr 1fr;width:min(100%,315px);margin-top:10px}
+  .home .panel-menu button{font-size:11px;padding-left:9px}
+  .home .panel-menu button::before{margin-right:6px}
+}
+</style>
+</head>
+<body>
+<main id="game" aria-label="Slopefall game">
+<canvas id="scene" aria-label="Top-down ruins with a two-part bridge"></canvas>
+<div id="hud" hidden><div id="objective" class="chip"><div class="tag" id="zone"></div><div id="goal"></div></div><div class="chip"><div id="hp"></div><div id="skill-state"></div></div><button id="pause" aria-label="Pause game">Pause</button></div>
+<div id="status" class="chip" hidden><div id="prompt"></div><div id="notice"></div><div id="hints">WASD / arrows · E interact · J strike · Space dash · Esc pause</div></div>
+<div id="touch" hidden><div id="stick" role="img" aria-label="Movement joystick"><div id="knob"></div></div><div id="actions"><button id="attack">Attack</button><button id="dash" aria-label="Dash skill">Dash</button><button id="interact">Interact</button></div></div>
+<div id="overlay" role="dialog" aria-modal="true" aria-labelledby="menu-title" hidden><section id="panel" class="panel"></section></div>
+</main>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const canvas = $('scene'), ctx = canvas.getContext('2d');
+const game = $('game'), panel = $('panel'), overlay = $('overlay');
+const media = matchMedia('(pointer: coarse)');
+const checkpointKey = 'slopefall.seam.checkpoint.v1';
+const settingsKey = 'slopefall.seam.settings.v1';
+const initial = {level:0,x:94,y:209,entered:false,b:0,hp:3};
+const levels = [
+  {
+    name:'Lantern Causeway', bounds:[824,400], spawn:[274,209], clue:'Find the lever beside the bridge.',
+    bridge:{left:448,right:632,top:155,bottom:265},
+    floors:[[34,97,212,320],[194,160,281,258],[266,92,448,330],[632,120,797,309]],
+    pillars:[[286,116,306,150],[390,274,416,300],[669,136,690,170],[753,268,775,293]],
+    lanterns:[[66,147],[183,191],[240,206],[278,177],[431,270],[655,203],[775,197]],
+    lever:[418,151], tablet:[368,160], exit:[741,214],
+    traps:[[328,236,36,0,'steam']], foes:[]
+  },
+  {
+    name:'The Spikeworks', bounds:[1090,550], spawn:[88,374], clue:'Take the north passage to the lever.',
+    bridge:{left:565,right:820,top:329,bottom:439},
+    floors:[[32,270,565,505],[446,230,554,290],[350,86,620,251],[820,265,1060,505]],
+    pillars:[[213,278,250,348],[323,408,367,473],[473,124,513,177],[889,274,920,322]],
+    lanterns:[[100,315],[186,385],[294,362],[421,306],[505,264],[548,214],[559,126],[546,449],[848,385],[1015,414]],
+    lever:[555,128], tablet:[387,126], exit:[999,374],
+    traps:[[290,389,42,.5,'steam'],[502,273,42,1.3,'spikes'],[557,205,32,2.1,'spikes'],[916,388,39,2.6,'steam']],
+    foes:[[384,360,432,437],[924,338,993,414]]
+  },
+  {
+    name:'The Hollow Vault', bounds:[1540,670], spawn:[99,501], clue:'Follow the lanterns north, then east to the lever vault.',
+    bridge:{left:925,right:1235,top:387,bottom:501},
+    floors:[[32,390,215,620],[194,440,352,550],[330,292,570,610],[389,155,482,313],[365,65,872,185],[777,162,871,296],[701,275,925,570],[1235,300,1505,605]],
+    pillars:[[371,367,411,423],[488,457,547,500],[524,95,569,145],[667,127,710,173],[752,381,799,426],[1361,347,1401,393]],
+    lanterns:[[90,444],[197,496],[309,490],[465,390],[438,294],[439,177],[498,110],[612,116],[743,114],[823,166],[823,267],[860,323],[896,456],[1263,452],[1452,470]],
+    lever:[872,325], tablet:[732,326], exit:[1446,442],
+    traps:[[430,480,45,.8,'spikes'],[431,283,43,1.9,'steam'],[625,123,43,2.3,'spikes'],[824,226,44,.35,'spikes'],[848,389,37,1.1,'steam'],[1332,452,45,2.4,'spikes'],[1409,496,42,1.5,'steam']],
+    foes:[[454,361,528,432],[727,94,793,143],[812,467,886,523],[1280,374,1372,436],[1398,435,1465,519]]
+  }
+];
+let level, bridge, seam, floors, pillars, objects, monsters, swing = 0, attackDelay = 0;
+function setLevel(index) {
+  level = levels[index];
+  ({bridge,floors,pillars} = level);
+  seam = (bridge.left+bridge.right)/2;
+  const object = ([x,y],label) => ({x,y,label});
+  objects = {
+    lever:object(level.lever,'Adjust bridge lever'),
+    tablet:object(level.tablet,'Read stone tablet'),
+    [index===levels.length-1?'artifact':'ladder']:object(level.exit,index===levels.length-1?'Retrieve the Ember Lens':'Descend the ladder')
+  };
+  if (index===0) objects.lantern=object([153,169],'Read lantern marker');
+  monsters=level.foes.map(([x,y,toX,toY],i)=>({x,y,fromX:x,fromY:y,toX,toY,phase:i,wind:0,lunge:0,rest:.5,hp:index}));
+}
+function floorCheckpoint(index,b) {
+  const {spawn,lever}=levels[index];
+  const [x,y]=b===1 ? [lever[0],lever[1]+21] : spawn;
+  return {level:index,x,y,entered:true,b,hp:3};
+}
+const movement = {KeyA:[-1,0],ArrowLeft:[-1,0],KeyD:[1,0],ArrowRight:[1,0],KeyW:[0,-1],ArrowUp:[0,-1],KeyS:[0,1],ArrowDown:[0,1]};
+const keys = new Set();
+const stick = {id:null,x:0,y:0};
+const clamp = (n,min,max) => Math.max(min,Math.min(max,n));
+const distance = (x,y,o) => Math.hypot(x-o.x,y-o.y);
+let player, view = 'title', backView = 'title', infoBack = 'play', confirmAction;
+let elapsed = 0, cooldown = 0, dashTime = 0, dx = 1, dy = 0, heading = [1,0], safeTime = 0;
+let deckHeight = 2, sparks = [], notice = '', noticeTime = 0, walking = false;
+let lastFrame = 0, touchMode = media.matches, zoom = 1, camX = 0, camY = 0;
+let saved = read(checkpointKey), prefs = read(settingsKey) || {};
+let settings = {music:volume(prefs.music,.26),sfx:volume(prefs.sfx,.58)};
+let audio, musicGain, effectsGain, noteIndex = 0, musicActive = false;
+const notes = [146.83,0,220,0,261.63,220,0,196,130.81,0,196,0,246.94,196,0,164.81];
+
+function read(key) {
+  try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
+}
+function write(key,value) {
+  try { localStorage.setItem(key,JSON.stringify(value)); return true; } catch { return false; }
+}
+function volume(n,fallback) { return Number.isFinite(n) ? clamp(n,0,1) : fallback; }
+function validSave(s) {
+  const index=s?.level ?? 0;
+  return s?.entered===true && Number.isInteger(index) && index>=0 && index<levels.length && (s.b===0 || s.b===1);
+}
+saved = validSave(saved) ? floorCheckpoint(saved.level ?? 0,saved.b) : null;
+function saveCheckpoint(b) {
+  saved = floorCheckpoint(player.level,b);
+  if (!write(checkpointKey,saved)) announce('Checkpoint saved for this tab.');
+}
+function bridgeHeights(b) {
+  const leftLimit = 2 + 1;
+  const rightLimit = 2 + b;
+  const atSeam = 2 + b;
+  return {leftLimit,rightLimit,atSeam,continuous:leftLimit === rightLimit && rightLimit === atSeam};
+}
+function aligned() {
+  const heights = bridgeHeights(player.b);
+  return heights.continuous && Math.abs(deckHeight-heights.rightLimit) < .001;
+}
+function reset(state) {
+  player = {...state};
+  setLevel(player.level);
+  swing = attackDelay = 0;
+  elapsed = cooldown = dashTime = safeTime = 0;
+  deckHeight = bridgeHeights(player.b).rightLimit;
+  heading = [1,0];
+  sparks = [];
+  notice = '';
+  walking = false;
+  clearInput();
+}
+function announce(text) { notice = text; noticeTime = 3.4; }
+function clearInput() {
+  keys.clear();
+  stick.id = null;
+  stick.x = stick.y = 0;
+  $('knob').style.transform = '';
+}
+function setTouch(value) {
+  touchMode = value;
+  document.body.classList.toggle('touch',value);
+  clearInput();
+  resize();
+}
+function note(bus,frequency,duration,level,type='sine') {
+  if (!audio || audio.state !== 'running') return;
+  const start = audio.currentTime, osc = audio.createOscillator(), envelope = audio.createGain();
+  osc.type = type;
+  osc.frequency.value = frequency;
+  envelope.gain.setValueAtTime(.001,start);
+  envelope.gain.exponentialRampToValueAtTime(level,start+.035);
+  envelope.gain.exponentialRampToValueAtTime(.001,start+duration);
+  osc.connect(envelope).connect(bus);
+  osc.start(start);
+  osc.stop(start+duration+.01);
+}
+function playMusic() {
+  const Context = window.AudioContext || window.webkitAudioContext;
+  if (!Context) return;
+  if (!audio) {
+    audio = new Context();
+    musicGain = audio.createGain();
+    effectsGain = audio.createGain();
+    musicGain.connect(audio.destination);
+    effectsGain.connect(audio.destination);
+    applyVolumes();
+    setInterval(() => {
+      if (audio.state !== 'running' || document.hidden || !musicActive) return;
+      const frequency = notes[noteIndex % notes.length];
+      if (frequency) note(musicGain,frequency,.56,.15,'triangle');
+      if (noteIndex % 4 === 0) note(musicGain,notes[noteIndex < 8 ? 0 : 8]/2,1.3,.18);
+      noteIndex = (noteIndex+1)%notes.length;
+    },360);
+  }
+  musicActive = true;
+  audio.resume().catch(()=>{});
+}
+function applyVolumes() {
+  if (!audio) return;
+  musicGain.gain.setTargetAtTime(settings.music,audio.currentTime,.015);
+  effectsGain.gain.setTargetAtTime(settings.sfx,audio.currentTime,.015);
+}
+function cue(frequency) { if (effectsGain) note(effectsGain,frequency,.22,.22,'triangle'); }
+function start(state) {
+  reset(state);
+  playMusic();
+  change('play');
+  announce(state.entered ? 'Checkpoint restored.' : 'Try moving, then read the lantern marker.');
+}
+
+function change(next) {
+  view = next;
+  overlay.classList.toggle('home', next === 'title');
+  if (next === 'title') musicActive = false;
+  clearInput();
+  const live = next === 'play';
+  overlay.hidden = live;
+  $('hud').hidden = $('status').hidden = $('touch').hidden = !live;
+  if (live) {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    return;
+  }
+  drawMenu();
+}
+function menu(title,body,buttons,eyebrow='SLOPEFALL / THE SEAM OF ASH') {
+  panel.className = 'panel';
+  panel.innerHTML = '<div class="tag">'+eyebrow+'</div>'+title+body+'<div class="panel-menu"></div>';
+  const list = panel.querySelector('.panel-menu');
+  for (const [label,action,primary,disabled] of buttons) {
+    const button = document.createElement('button');
+    button.textContent = label;
+    button.disabled = Boolean(disabled);
+    if (primary) button.className = 'primary';
+    button.onclick = action;
+    list.append(button);
+  }
+  list.querySelector('button:not(:disabled)')?.focus({preventScroll:true});
+}
+function openSettings() { backView = view; change('settings'); }
+function openAbout() { backView = view; change('about'); }
+function confirmProgress(title,text,action) {
+  confirmAction = {title,text,action,back:view};
+  change('confirm');
+}
+function newGame() {
+  if (saved) confirmProgress('Start over?','This replaces the current checkpoint.',() => {
+    saved = null;
+    try { localStorage.removeItem(checkpointKey); } catch {}
+    start(initial);
+  });
+  else start(initial);
+}
+function drawMenu() {
+  const heading = text => '<h2 id="menu-title">'+text+'</h2>';
+  if (view === 'title') {
+    menu('<h1 id="menu-title">Slopefall</h1>','<div class="subtitle">The Seam of Ash</div><p>Carry the lantern into the Hollow Vault. Mend the crossings and bring back the Ember Lens.</p>',[
+      ['New Game',newGame,true],['Continue',()=>start(saved),false,!saved],['Settings',openSettings],['About',openAbout]
+    ],'A dungeon adventure');
+  } else if (view === 'pause') {
+    menu(heading('Paused'),'<p>Your lantern will keep burning.</p>',[
+      ['Resume',()=>change('play'),true],
+      ['Continue from Checkpoint',()=>confirmProgress('Reload checkpoint?','You will lose progress made since the last checkpoint.',()=>start(saved)),false,!saved],
+      ['Settings',openSettings],['About',openAbout],
+      ['Home / Exit to Title',()=>confirmProgress('Return to title?','Progress since your last checkpoint will be lost.',()=>{reset(initial);change('title');})]
+    ]);
+  } else if (view === 'confirm') {
+    menu(heading(confirmAction.title),'<p>'+confirmAction.text+'</p>',[
+      ['Cancel',()=>change(confirmAction.back),true],['Confirm',confirmAction.action]
+    ]);
+  } else if (view === 'settings') {
+    menu(heading('Settings'),'<label>Music <output id="music-out"></output><input id="music" type="range" min="0" max="100" aria-label="Music volume"></label><label>Effects <output id="sfx-out"></output><input id="sfx" type="range" min="0" max="100" aria-label="Effects volume"></label><p id="fullscreen-note" role="status"></p>',[
+      [document.fullscreenElement ? 'Exit Fullscreen' : 'Enter Fullscreen',toggleFullscreen],
+      ['Back',()=>change(backView),true]
+    ]);
+    for (const key of ['music','sfx']) {
+      const slider = $(key), output = $(key+'-out');
+      slider.value = Math.round(settings[key]*100);
+      output.textContent = slider.value === '0' ? 'Muted' : slider.value+'%';
+      slider.oninput = () => {
+        settings[key] = Number(slider.value)/100;
+        output.textContent = slider.value === '0' ? 'Muted' : slider.value+'%';
+        applyVolumes();
+        write(settingsKey,settings);
+      };
+      if (key === 'sfx') slider.onchange = () => cue(440);
+    }
+  } else if (view === 'about') {
+    menu(heading('About'),'<p>A three-floor ruin adventure for MATH 101. Repair each bridge, take the ladders down, and recover the Ember Lens.</p><p><strong>Desktop</strong> · WASD or arrows to move, E to interact, J to strike, Space to dash, Esc to pause or go back.</p><p><strong>Touch</strong> · Use the left thumbstick and tap Attack, Dash, or Interact with the other thumb.</p><p><strong>Calculus</strong> · A crossing is continuous when the two one-sided limits agree with the height at the join.</p><p><strong>Credits</strong> · Original sprites, map, effects, and synthesized score created for Slopefall. Lesson reference: MATH 101, Chapter 4, Limits and Continuity.</p>',[
+      ['Back',()=>change(backView),true]
+    ]);
+  } else if (view === 'lever') {
+    menu(heading('Bridge lever'),'<p>Raise or lower the far deck. Watch the two edge markers meet.</p><p id="bridge-state" role="status"></p>',[
+      ['Back to crossing',()=>change('play'),true],['How it works',()=>{infoBack='lever';change('math');}]
+    ]);
+    panel.classList.add('lever-panel');
+    const dial = document.createElement('div');
+    dial.className = 'dial';
+    dial.setAttribute('aria-label','Bridge height settings');
+    for (const b of [0,1,2]) {
+      const button = document.createElement('button');
+      button.textContent = 'b = '+b;
+      button.setAttribute('aria-pressed',String(player.b === b));
+      button.onclick = () => {
+        setLever(b);
+        for (const option of dial.children) option.setAttribute('aria-pressed',String(option === button));
+      };
+      dial.append(button);
+    }
+    panel.querySelector('.panel-menu').before(dial);
+    dial.children[player.b].focus({preventScroll:true});
+    showBridgeState();
+  } else if (view === 'math') {
+    menu(heading('At the seam'),'<p><code>f(x) = x + 1</code> for <code>x &lt; 2</code><br><code>f(x) = x + b</code> for <code>x ≥ 2</code></p><p>As <code>x → 2⁻</code>, the height approaches <strong>3</strong>. As <code>x → 2⁺</code>, the height approaches <strong>2 + b</strong>. The seam itself has height <code>f(2) = 2 + b</code>.</p><p>At <strong>b = 0</strong>, the left edge approaches 3 and the right edge approaches 2. The one-sided limits disagree, so the two-sided limit does not exist and the route stays closed.</p><p>At <strong>b = 1</strong>, both sides approach 3 and <code>f(2) = 3</code>. The function is continuous at 2, so the crossing opens.</p>',[
+      ['Back',()=>change(infoBack),true]
+    ],'FIELD NOTES / LIMITS AND CONTINUITY');
+    panel.classList.add('calculus');
+  } else if (view === 'tutorial') {
+    menu(heading('Lantern marker'),'<p>Move around this camp to get your bearings. Try a dash while moving. The skill indicator shows when you can dash again.</p><p>Follow the lanterns east, adjust the bridge lever, and take the ladder down. Use your strike against creatures on the deeper floors.</p>',[['Back to camp',()=>change('play'),true]]);
+  } else if (view === 'lost') {
+    menu(heading('Lantern extinguished'),'<p>Watch the amber warnings, dash past traps, and strike when a monster comes within reach.</p>',[['Retry checkpoint',()=>start(saved||initial),true],['Home',()=>{reset(initial);change('title');}]]);
+  } else if (view === 'won') {
+    menu(heading('The Lens returns'),'<p>You mended the seam and recovered the Ember Lens. Light returns to the ruin.</p>',[
+      ['Review the bridge math',()=>{infoBack='won';change('math');},true],['Home',()=>{reset(initial);change('title');}]
+    ],'ARTIFACT RECOVERED');
+  }
+}
+async function toggleFullscreen() {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else if (game.requestFullscreen) await game.requestFullscreen();
+    else throw new Error('Unsupported');
+  } catch {
+    $('fullscreen-note').textContent = 'Fullscreen is unavailable here. The game still fills the viewport.';
+  }
+}
+function goBack() {
+  const returns = {pause:'play',settings:backView,about:backView,confirm:confirmAction?.back,math:infoBack,lever:'play',tutorial:'play'};
+  if (view === 'play') change('pause');
+  else if (returns[view]) change(returns[view]);
+}
+$('pause').onclick = () => change('pause');
+document.addEventListener('fullscreenchange',()=>{clearInput();resize();if(view==='settings') drawMenu();});
+function trapPhase(offset) { return (elapsed+offset)%(3.5-player.level*.18); }
+function accessible(x,y) {
+  if (pillars.some(([l,t,r,b])=>x>l-6 && x<r+6 && y>t-6 && y<b+6)) return false;
+  if (floors.some(([l,t,r,b])=>x>=l && x<=r && y>=t+5 && y<=b-5)) return true;
+  return x>=bridge.left-4 && x<=bridge.right+4 && y>=bridge.top+4 && y<=bridge.bottom-4
+    && (x<seam-6 || aligned());
+}
+function hurt(message) {
+  if (safeTime>0 || player.hp===0) return;
+  player.hp--;
+  safeTime=1.2;
+  burst(player.x,player.y,'#f7a27b',12);
+  cue(110);
+  announce(message);
+  if (player.hp===0) change('lost');
+}
+function strike() {
+  if (view!=='play' || attackDelay>0) return;
+  swing=.17;
+  attackDelay=.33;
+  cue(290);
+  for (const m of monsters) {
+    const x=m.x-player.x, y=m.y-player.y;
+    if (m.hp<=0 || Math.hypot(x,y)>48 || x*heading[0]+y*heading[1]<-6) continue;
+    m.hp--;
+    m.wind=m.lunge=0;
+    m.rest=.7;
+    burst(m.x,m.y,'#d7a6db',10);
+    if (!m.hp) announce('Shade defeated.');
+  }
+}
+function updateMonsters(dt,dashing) {
+  for (const m of monsters) {
+    if (m.hp<=0) continue;
+    const range=distance(m.x,m.y,player);
+    m.rest-=dt;
+    if (m.wind>0) {
+      m.wind-=dt;
+      if (m.wind<=0) m.lunge=.28;
+    } else if (m.lunge>0) {
+      m.lunge-=dt;
+      const x=m.x+m.dx*225*dt, y=m.y+m.dy*225*dt;
+      if (accessible(x,m.y)) m.x=x;
+      if (accessible(m.x,y)) m.y=y;
+      if (!dashing && distance(m.x,m.y,player)<20) hurt('A shade struck. Watch for its red warning.');
+      if (m.lunge<=0) m.rest=1;
+    } else if (m.rest<=0 && range<89 && range>0) {
+      m.wind=.55-player.level*.07;
+      m.dx=(player.x-m.x)/range;
+      m.dy=(player.y-m.y)/range;
+    } else if (m.rest<=0) {
+      m.phase+=dt*.65;
+      const t=(1-Math.cos(m.phase))/2;
+      const x=m.fromX+(m.toX-m.fromX)*t, y=m.fromY+(m.toY-m.fromY)*t;
+      const d=Math.hypot(x-m.x,y-m.y);
+      if (d>1) {
+        const stride=Math.min(d,dt*68);
+        const nx=m.x+(x-m.x)/d*stride, ny=m.y+(y-m.y)/d*stride;
+        if (accessible(nx,ny)) {m.x=nx;m.y=ny;}
+      }
+    }
+    if (view!=='play') break;
+  }
+}
+function nearObject() {
+  return Object.entries(objects).filter(([name,o])=>distance(player.x,player.y,o)<(name==='artifact'?39:35))
+    .sort((a,b)=>distance(player.x,player.y,a[1])-distance(player.x,player.y,b[1]))[0];
+}
+function interact() {
+  if (view !== 'play') return;
+  const nearby = nearObject();
+  if (!nearby) return;
+  cue(392);
+  switch (nearby[0]) {
+    case 'lantern': change('tutorial'); break;
+    case 'lever': change('lever'); break;
+    case 'tablet': infoBack='play'; change('math'); break;
+    case 'ladder':
+      if (aligned()) {
+        reset(floorCheckpoint(player.level+1,0));
+        saveCheckpoint(0);
+        announce('Descended to '+level.name+'. Checkpoint saved.');
+        cue(196);
+      }
+      break;
+    case 'artifact': if (aligned()) { cue(660); change('won'); } break;
+  }
+}
+function setLever(b) {
+  if (player.b === b) return;
+  player.b = b;
+  cue(250+b*70);
+}
+function showBridgeState() {
+  if (view !== 'lever') return;
+  const state = $('bridge-state');
+  const text = aligned() ? 'Aligned · route open' : 'Route blocked';
+  if (state.textContent !== text) state.textContent = text;
+}
+function updateDeck(dt) {
+  showBridgeState();
+  const target = bridgeHeights(player.b).rightLimit;
+  const delta = target-deckHeight;
+  if (delta === 0) return;
+  deckHeight += Math.sign(delta)*Math.min(Math.abs(delta),dt*4.8);
+  if (aligned()) {
+    saveCheckpoint(1);
+    burst(seam,bridge.top+5,'#aaf5bf',24);
+    announce('Bridge aligned. Crossing open.');
+    cue(587.33);
+  }
+}
+function dash() {
+  if (view !== 'play' || cooldown>0) return;
+  const [x,y] = vector();
+  [dx,dy] = (x||y) ? [x,y] : heading;
+  dashTime = .15;
+  cooldown = 1.65;
+  cue(284);
+}
+function vector() {
+  let {x,y} = stick;
+  for (const key of keys) {
+    x += movement[key][0];
+    y += movement[key][1];
+  }
+  const n = Math.max(1,Math.hypot(x,y));
+  return [x/n,y/n];
+}
+function burst(x,y,color,count) {
+  for(let i=0;i<count;i++) sparks.push({x,y,color,life:.25+Math.random()*.4,vx:(Math.random()-.5)*92,vy:(Math.random()-.5)*80});
+}
+function updateSparks(dt) {
+  for (const s of sparks) { s.x+=s.vx*dt; s.y+=s.vy*dt; s.life-=dt; }
+  sparks=sparks.filter(s=>s.life>0);
+}
+function update(dt) {
+  if (view === 'lever') {
+    updateDeck(dt);
+    updateSparks(dt);
+    return;
+  }
+  if (view !== 'play') return;
+  elapsed += dt;
+  noticeTime -= dt;
+  safeTime = Math.max(0,safeTime-dt);
+  cooldown = Math.max(0,cooldown-dt);
+  swing = Math.max(0,swing-dt);
+  attackDelay = Math.max(0,attackDelay-dt);
+  updateDeck(dt);
+  updateSparks(dt);
+  const dashing = dashTime>0;
+  const [x,y] = dashing ? [dx,dy] : vector();
+  walking = Boolean(x||y);
+  if (walking) heading=[x,y];
+  const speed = dashing ? 470 : 134;
+  const nextX=player.x+x*speed*dt, nextY=player.y+y*speed*dt;
+  if (accessible(nextX,player.y)) player.x=nextX;
+  else if (x>0 && player.x>seam-25 && player.x<seam && !aligned()) announce('The seam is blocked. Adjust the bridge lever.');
+  if (accessible(player.x,nextY)) player.y=nextY;
+  if (dashing) {
+    dashTime = Math.max(0,dashTime-dt);
+    burst(player.x,player.y+4,'#80c2be',1);
+  }
+  if (!player.entered && player.x>=level.spawn[0]) {
+    player.entered=true;
+    saveCheckpoint(0);
+    announce('Ruins checkpoint reached.');
+    cue(493.88);
+  }
+  if (!dashing && level.traps.some(([x,y,r,offset])=>trapPhase(offset)>=2.35 && distance(player.x,player.y,{x,y})<r)) {
+    hurt('Trap triggered. Watch the amber warnings.');
+  }
+  if (view==='play') updateMonsters(dt,dashing);
+}
+addEventListener('keydown',event=>{
+  if (event.code==='Escape') {
+    if (!event.repeat) goBack();
+    return;
+  }
+  if (view!=='play' || event.altKey || event.ctrlKey || event.metaKey) return;
+  if (movement[event.code]) {
+    event.preventDefault();
+    keys.add(event.code);
+  }
+  if (event.code==='Space' && !(event.target instanceof HTMLButtonElement)) {
+    event.preventDefault();
+    if (!event.repeat) dash();
+  }
+  if (event.code==='KeyJ' && !event.repeat) strike();
+  if (event.code==='KeyE' && !event.repeat) interact();
+});
+addEventListener('keyup',event=>keys.delete(event.code));
+function suspendInput() {
+  clearInput();
+  if (view==='play') change('pause');
+}
+addEventListener('blur',suspendInput);
+document.addEventListener('visibilitychange',()=>{if(document.hidden) suspendInput();});
+addEventListener('orientationchange',clearInput);
+media.addEventListener('change',()=>setTouch(media.matches));
+game.addEventListener('pointerdown',event=>{
+  if (event.pointerType==='touch' && !touchMode) setTouch(true);
+},true);
+function moveStick(event) {
+  const rect=$('stick').getBoundingClientRect();
+  const r=rect.width*.35;
+  let x=(event.clientX-rect.left-rect.width/2)/r;
+  let y=(event.clientY-rect.top-rect.height/2)/r;
+  const n=Math.max(1,Math.hypot(x,y));
+  x/=n; y/=n;
+  stick.x=x; stick.y=y;
+  $('knob').style.transform='translate('+x*r+'px,'+y*r+'px)';
+}
+$('stick').onpointerdown=event=>{
+  if(view!=='play' || stick.id!==null) return;
+  event.preventDefault();
+  stick.id=event.pointerId;
+  $('stick').setPointerCapture(event.pointerId);
+  moveStick(event);
+};
+$('stick').onpointermove=event=>{if(stick.id===event.pointerId) moveStick(event);};
+function releaseStick(event) {
+  if (stick.id!==event.pointerId) return;
+  stick.id=null;
+  stick.x=stick.y=0;
+  $('knob').style.transform='';
+}
+$('stick').onpointerup=$('stick').onpointercancel=$('stick').onlostpointercapture=releaseStick;
+$('dash').onclick=dash;
+$('attack').onclick=strike;
+$('interact').onclick=interact;
+
+function resize() {
+  const width=game.clientWidth, height=game.clientHeight;
+  canvas.width=Math.max(1,Math.round(width/Math.max(1,Math.floor(width/620))));
+  canvas.height=Math.max(1,Math.round(canvas.width*height/Math.max(1,width)));
+  clearInput();
+}
+new ResizeObserver(resize).observe(game);
+function camera() {
+  const w=canvas.width,h=canvas.height;
+  const reserve=touchMode ? 122*canvas.height/game.clientHeight : 49*canvas.height/game.clientHeight;
+  zoom=Math.min(w/(touchMode?440:530),1.7);
+  const span=w/zoom;
+  const target=view==='lever' ? seam : player.x;
+  camX=span>=level.bounds[0]+16 ? (level.bounds[0]-span)/2 : clamp(target-span/2,-16,level.bounds[0]-span);
+  const available=(h-reserve)/zoom;
+  const verticalTarget=available>=level.bounds[1] ? level.bounds[1]/2 : player.y;
+  camY=view==='lever' ? bridge.top+15-h*.235/zoom : verticalTarget-(available+36/zoom)/2;
+}
+function rect(x,y,w,h,color) {
+  ctx.fillStyle=color;
+  ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h));
+}
+function polygon(points,color) {
+  ctx.fillStyle=color;
+  ctx.beginPath();
+  points.forEach(([x,y],i)=>i ? ctx.lineTo(x,y) : ctx.moveTo(x,y));
+  ctx.closePath();
+  ctx.fill();
+}
+function glow(x,y,r,color) {
+  const g=ctx.createRadialGradient(x,y,1,x,y,r);
+  g.addColorStop(0,color);
+  g.addColorStop(1,'transparent');
+  ctx.fillStyle=g;
+  ctx.fillRect(x-r,y-r,2*r,2*r);
+}
+function line(x,y,a,b,color) {
+  ctx.strokeStyle=color;
+  ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(a,b);ctx.stroke();
+}
+function diamond(x,y,r,color) { polygon([[x,y-r],[x+r,y],[x,y+r],[x-r,y]],color); }
+function seed(n) { return ((n*16807)%104729)/104729; }
+function drawFloor([l,t,r,b],index) {
+  rect(l-3,t-6,r-l+6,b-t+15,'#0e181f');
+  rect(l,t,r-l,b-t+5,'#263b3c');
+  rect(l,t,r-l,b-t,'#273239');
+  rect(l,t,r-l,5,['#48605a','#755b4a','#655873'][player.level]);
+  rect(l,b-4,r-l,4,'#344b49');
+  ctx.save();
+  ctx.beginPath();ctx.rect(l,t,r-l,b-t);ctx.clip();
+  for (let y=t+7;y<b;y+=16) {
+    for (let x=l+((y-t)%32)-16;x<r;x+=24) {
+      const variation=seed(x*31+y*23+index*37);
+      rect(x,y,22,14,variation>.77 ? '#304047' : variation>.42 ? '#2b383e' : '#2a353b');
+      if (variation>.82) rect(x+3,y+2,9,2,'#47534b');
+    }
+  }
+  ctx.restore();
+}
+function lantern(x,y) {
+  glow(x,y-6,35,'#f5c07542');
+  rect(x-3,y,7,4,'#17232a');
+  rect(x-1,y-10,3,12,'#9a775a');
+  rect(x-4,y-13,9,7,'#5f5141');
+  rect(x-2,y-12,5,5,'#f6c783');
+  rect(x,y-11,1,3,'#fff0bd');
+}
+function drawPillar([l,t,r,b]) {
+  rect(l+5,b-3,r-l+12,8,'#15232a');
+  rect(l,t+5,r-l,b-t,'#17252d');
+  rect(l+2,t,r-l-4,9,'#53676a');
+  rect(l+3,t+10,4,b-t-12,'#33454a');
+}
+function deckOffset(x,height) {
+  const modelX = 2+(x-seam)/(seam-bridge.left)*2;
+  const landing = Math.min(x-bridge.left,bridge.right-x);
+  return ((3-height)*15-(modelX-2)*7.2)*clamp(landing/30,0,1);
+}
+function drawDeck(x0,x1,height,color) {
+  const {top,bottom} = bridge;
+  const b=deckOffset(x1,height);
+  const edge = y => {
+    const points=[];
+    for(let x=x0;x<x1;x+=4) points.push([x,y+deckOffset(x,height)]);
+    return [...points,[x1,y+b]];
+  };
+  polygon([...edge(top),...edge(bottom+8).reverse()],'#30282a');
+  polygon([...edge(top),...edge(bottom).reverse()],color);
+  for(let x=x0+7;x<x1;x+=9) {
+    const offset=deckOffset(x,height);
+    line(x,top+offset,x,bottom+offset,'#382f2e');
+  }
+  for(const y of [top,bottom]) {
+    ctx.beginPath();
+    for(let x=x0;x<x1;x+=4) ctx.lineTo(x,y+deckOffset(x,height));
+    ctx.lineTo(x1,y+b);
+    ctx.strokeStyle=y===top?'#9b7b5c':'#5b453c';
+    ctx.lineWidth=1.5;
+    ctx.stroke();
+  }
+  line(x1,top+b,x1,bottom+b,'#b69770');
+}
+function drawBridge() {
+  const {leftLimit,rightLimit} = bridgeHeights(player.b);
+  for(const x of [bridge.left-23,bridge.right]) {
+    rect(x,bridge.top,23,bridge.bottom-bridge.top,'#52645b');
+    rect(x,bridge.top+5,23,bridge.bottom-bridge.top-10,'#47564f');
+    for(let y=bridge.top+14;y<bridge.bottom-8;y+=18) rect(x+5,y,12,2,'#a7b189');
+  }
+  drawDeck(bridge.left,seam,leftLimit,'#71604f');
+  drawDeck(seam,bridge.right,deckHeight,'#79644e');
+  const open=aligned(), color=open?'#b3f3ba':'#f5bc88';
+  const left=bridge.top+deckOffset(seam,leftLimit), right=bridge.top+deckOffset(seam,deckHeight);
+  if (!open) {
+    line(seam,left+7,seam,bridge.bottom-4,'#f1a07b');
+    for(let y=bridge.top+19;y<bridge.bottom-6;y+=14) line(seam-5,y,seam+5,y+5,'#e79570');
+    line(seam-5,bridge.top+22,seam+5,bridge.top+32,'#ffb487');
+    line(seam+5,bridge.top+22,seam-5,bridge.top+32,'#ffb487');
+  }
+  if (view==='lever' || (view==='play' && player.x>bridge.left-73 && player.x<bridge.right+25)) {
+    line(seam-14,left-5,seam-2,left-5,color);
+    line(seam+2,right-5,seam+14,right-5,color);
+    diamond(seam-12,left-5,3,color);
+    diamond(seam+12,right-5,3,color);
+    ctx.font='bold 13px monospace';
+    ctx.textAlign='right';
+    ctx.fillStyle=color;
+    ctx.fillText('L '+leftLimit,seam-17,left-1);
+    ctx.textAlign='left';
+    ctx.fillText('R '+rightLimit,seam+17,right-1);
+    ctx.textAlign='center';
+    ctx.fillText(open?'ALIGNED':'SEAM',seam,Math.min(left,right)-19);
+  }
+}
+function drawTrap([x,y,radius,offset,kind]) {
+  const phase=trapPhase(offset), active=phase>=2.35;
+  if(phase>=1.45){
+    ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);
+    ctx.fillStyle=active?'#e97b5755':'#f7ba7133';ctx.fill();
+    ctx.strokeStyle=active?'#ff9a75':'#ecb674';ctx.lineWidth=2;ctx.stroke();
+  }
+  rect(x-10,y-7,20,14,'#171e24');
+  for(let i=-6;i<=6;i+=4) rect(x+i,y-5,2,10,'#726253');
+  if(active) {
+    for(let i=0;i<9;i++) {
+      const px=x+seed(i*411+6)*radius*1.5-radius*.75;
+      const py=y+(seed(i*1591+8)-.5)*radius;
+      if(kind==='spikes') polygon([[px-4,py+4],[px,py-11],[px+4,py+4]],'#f4c6a0');
+      else rect(px,py-(elapsed*46+i*13)%25,5,5,'#e8ad85');
+    }
+  }
+}
+function drawMonster(m) {
+  if (m.hp<=0) return;
+  const {x,y}=m;
+  if (m.wind>0) {
+    line(x,y,x+m.dx*65,y+m.dy*65,'#f49385');
+    diamond(x+m.dx*65,y+m.dy*65,4,'#f49385');
+    rect(x-1,y-31,3,8,'#ffaf95');rect(x-1,y-21,3,3,'#ffaf95');
+  }
+  rect(x-12,y+1,24,5,'#101820');
+  polygon([[x-13,y+2],[x-10,y-13],[x-4,y-19],[x+6,y-16],[x+12,y-7],[x+13,y+3]],'#725781');
+  rect(x-6,y-12,4,3,'#f7c8d3');rect(x+3,y-12,4,3,'#f7c8d3');
+}
+
+function drawObjects() {
+  for(const [x,y] of level.lanterns) lantern(x,y);
+  const marker=objects.lantern;
+  if(marker) { lantern(marker.x,marker.y); diamond(marker.x,marker.y-23,4,'#f6c783'); }
+  const {lever,tablet,artifact,ladder}=objects;
+  rect(tablet.x-7,tablet.y-10,14,14,'#6e827e');
+  rect(tablet.x-4,tablet.y-7,8,2,'#27363b');
+  rect(tablet.x-4,tablet.y-3,6,2,'#27363b');
+  glow(lever.x,lever.y-6,27,'#f2c38340');
+  rect(lever.x-10,lever.y-5,20,9,'#4d5859');
+  rect(lever.x-5,lever.y-7,10,4,'#171e26');
+  line(lever.x,lever.y-5,lever.x+(player.b-1)*7,lever.y-16,'#e1bd8e');
+  diamond(lever.x+(player.b-1)*7,lever.y-16,4,'#f4bd76');
+  if(ladder) {
+    const {x,y}=ladder;
+    glow(x,y,44,'#9bfab249');
+    rect(x-18,y-13,36,29,'#53675e');
+    rect(x-14,y-9,28,21,'#111b23');
+    rect(x-9,y-16,3,27,'#c2976e');
+    rect(x+6,y-16,3,27,'#c2976e');
+    for(let i=-12;i<=8;i+=5) rect(x-8,y+i,16,2,'#e3b98a');
+    polygon([[x-5,y+19],[x+5,y+19],[x,y+25]],'#b3f3ba');
+  }
+  if(!artifact) return;
+  glow(artifact.x,artifact.y-8,40,'#9bfab256');
+  rect(artifact.x-12,artifact.y-1,24,10,'#53635b');
+  rect(artifact.x-9,artifact.y-4,18,5,'#8a9e88');
+  const bob = Math.sin(elapsed*3)*2;
+  diamond(artifact.x,artifact.y-11+bob,9,'#77c99d');
+  diamond(artifact.x,artifact.y-13+bob,5,'#d3fac1');
+}
+function drawPlayer() {
+  const {x,y}=player;
+  const onDeck=x>=bridge.left&&x<=bridge.right&&y>=bridge.top&&y<=bridge.bottom;
+  const baseY = y+(onDeck ? deckOffset(x,x<seam?bridgeHeights(player.b).leftLimit:deckHeight) : 0);
+  glow(x,baseY-1,42,'#e9dca529');
+  rect(x-8,baseY+3,16,4,'#111c24');
+  ctx.save();
+  if(safeTime>0 && Math.floor(safeTime*12)%2) ctx.globalAlpha=.5;
+  const stride=walking ? Math.round(Math.sin(elapsed*19)*2) : 0;
+  rect(x-6,baseY-2+stride,4,6,'#15242b');
+  rect(x+2,baseY-2-stride,4,6,'#15242b');
+  rect(x-8,baseY-12,16,12,'#345c62');
+  rect(x-5,baseY-11,10,10,'#4c8580');
+  rect(x-7,baseY-20,14,10,'#9ac7b4');
+  rect(x-5,baseY-22,10,4,'#c0dfc7');
+  rect(x+(heading[0]<0?-6:0),baseY-16,6,3,'#24373c');
+  rect(x+6,baseY-9,5,6,'#f0be82');
+  ctx.restore();
+  if(swing>0) {
+    const angle=Math.atan2(heading[1],heading[0]);
+    ctx.strokeStyle='#c4f1d4';ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(x,baseY-6,32,angle-.76,angle+.76);ctx.stroke();
+  }
+}
+function render() {
+  camera();
+  ctx.setTransform(1,0,0,1,0,0);
+  rect(0,0,canvas.width,canvas.height,['#0e161e','#19171c','#15131f'][player.level]);
+  ctx.setTransform(zoom,0,0,zoom,-camX*zoom,-camY*zoom);
+  for(let i=0;i<126;i++){
+    const x=seed(i*39+10)*(level.bounds[0]+56)-25,y=seed(i*61+9)*level.bounds[1];
+    polygon([[x-12,y+5],[x-6,y-11],[x+3,y-19],[x+13,y+5]],i%3===0?'#17252b':'#121d24');
+  }
+  floors.forEach(drawFloor);
+  pillars.forEach(drawPillar);
+  drawBridge();
+  level.traps.forEach(drawTrap);
+  drawObjects();
+  monsters.forEach(drawMonster);
+  for(const s of sparks) rect(s.x,s.y,2,2,s.color);
+  drawPlayer();
+  if(view==='play'){
+    const near=nearObject();
+    $('zone').textContent='B'+(player.level+1)+' / '+(!player.entered?'Lantern Camp':level.name);
+    $('goal').textContent=!player.entered?'Follow the lanterns into the ruins.':!aligned()?level.clue:objects.ladder?'Cross the bridge and descend the ladder.':'Cross and retrieve the Ember Lens.';
+    $('hp').textContent='♥'.repeat(player.hp)+'♡'.repeat(3-player.hp);
+    $('skill-state').textContent=cooldown>0?'Dash '+cooldown.toFixed(1)+'s':'Dash ready';
+    $('dash').disabled=cooldown>0;
+    $('attack').disabled=attackDelay>0;
+    $('interact').disabled=!near;
+    $('prompt').textContent=near?(touchMode?'Interact':'[E]')+' · '+near[1].label:'';
+    $('notice').textContent=noticeTime>0?notice:'';
+  }
+}
+function frame(now) {
+  const dt=Math.min(.033,Math.max(0,(now-lastFrame)/1000));
+  lastFrame=now;
+  update(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+reset(initial);
+setTouch(touchMode);
+change('title');
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
