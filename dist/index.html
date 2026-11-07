@@ -103,6 +103,15 @@ body.touch #touch:not([hidden]){display:flex}body.touch #hints{display:none}body
 const $ = id => document.getElementById(id);
 const canvas = $('scene'), ctx = canvas.getContext('2d');
 const game = $('game'), panel = $('panel'), overlay = $('overlay');
+const atlas = new Image();
+atlas.src = 'assets/dungeon-atlas.png';
+const sprites = {"moss":[0,1],"stone":[1,1],"dirt":[2,1],"rubble":[3,1],"leverOff":[4,1],"leverOn":[5,1],"stairs":[6,1],"altar":[7,1],"pillar":[8,1],"chest":[9,1],"openChest":[10,1],"torch":[11,6],"soul":[17,6],"spike":[23,6],"jelly":[29,8],"golem":[37,8],"slam":[45,8]};
+function sprite(name,x,y,width,height,frame=0) {
+  if (!atlas.complete || !atlas.naturalWidth) return;
+  const [start,length]=sprites[name];
+  const cell=start+frame%length;
+  ctx.drawImage(atlas,cell%8*96,Math.floor(cell/8)*96,96,96,Math.round(x),Math.round(y),width,height);
+}
 const media = matchMedia('(pointer: coarse)');
 const checkpointKey = 'slopefall.seam.checkpoint.v1';
 const settingsKey = 'slopefall.seam.settings.v1';
@@ -123,7 +132,7 @@ const levels = [
     floors:[[32,270,565,505],[446,230,554,290],[350,86,620,251],[820,265,1060,505]],
     pillars:[[213,278,250,348],[323,408,367,473],[473,124,513,177],[889,274,920,322]],
     lanterns:[[100,315],[186,385],[294,362],[421,306],[505,264],[548,214],[559,126],[546,449],[848,385],[1015,414]],
-    lever:[555,128], tablet:[387,126], exit:[999,374],
+    lever:[555,128], tablet:[387,126], exit:[999,374], chest:[395,181],
     traps:[[290,389,42,.5,'steam'],[502,273,42,1.3,'spikes'],[557,205,32,2.1,'spikes'],[916,388,39,2.6,'steam']],
     foes:[[384,360,432,437],[924,338,993,414]]
   },
@@ -133,7 +142,7 @@ const levels = [
     floors:[[32,390,215,620],[194,440,352,550],[330,292,570,610],[389,155,482,313],[365,65,872,185],[777,162,871,296],[701,275,925,570],[1235,300,1505,605]],
     pillars:[[371,367,411,423],[488,457,547,500],[524,95,569,145],[667,127,710,173],[752,381,799,426],[1361,347,1401,393]],
     lanterns:[[90,444],[197,496],[309,490],[465,390],[438,294],[439,177],[498,110],[612,116],[743,114],[823,166],[823,267],[860,323],[896,456],[1263,452],[1452,470]],
-    lever:[872,325], tablet:[732,326], exit:[1446,442],
+    lever:[872,325], tablet:[732,326], exit:[1446,442], chest:[607,161],
     traps:[[430,480,45,.8,'spikes'],[431,283,43,1.9,'steam'],[625,123,43,2.3,'spikes'],[824,226,44,.35,'spikes'],[848,389,37,1.1,'steam'],[1332,452,45,2.4,'spikes'],[1409,496,42,1.5,'steam']],
     foes:[[454,361,528,432],[727,94,793,143],[812,467,886,523],[1280,374,1372,436],[1398,435,1465,519]]
   }
@@ -149,6 +158,7 @@ function setLevel(index) {
     tablet:object(level.tablet,'Read stone tablet'),
     [index===levels.length-1?'artifact':'ladder']:object(level.exit,index===levels.length-1?'Retrieve the Ember Lens':'Descend the ladder')
   };
+  if (level.chest) objects.chest={...object(level.chest,'Open supply chest'),opened:false};
   if (index===0) objects.lantern=object([153,169],'Read lantern marker');
   monsters=level.foes.map(([x,y,toX,toY],i)=>({x,y,fromX:x,fromY:y,toX,toY,phase:i,wind:0,lunge:0,rest:.5,hp:index}));
 }
@@ -345,7 +355,7 @@ function drawMenu() {
       if (key === 'sfx') slider.onchange = () => cue(440);
     }
   } else if (view === 'about') {
-    menu(heading('About'),'<p>A three-floor ruin adventure for MATH 101. Repair each bridge, take the ladders down, and recover the Ember Lens.</p><p><strong>Desktop</strong> · WASD or arrows to move, E to interact, J to strike, Space to dash, Esc to pause or go back.</p><p><strong>Touch</strong> · Use the left thumbstick and tap Attack, Dash, or Interact with the other thumb.</p><p><strong>Calculus</strong> · A crossing is continuous when the two one-sided limits agree with the height at the join.</p><p><strong>Credits</strong> · Original sprites, map, effects, and synthesized score created for Slopefall. Lesson reference: MATH 101, Chapter 4, Limits and Continuity.</p>',[
+    menu(heading('About'),'<p>A three-floor ruin adventure for MATH 101. Repair each bridge, take the ladders down, and recover the Ember Lens.</p><p><strong>Desktop</strong> · WASD or arrows to move, E to interact, J to strike, Space to dash, Esc to pause or go back.</p><p><strong>Touch</strong> · Use the left thumbstick and tap Attack, Dash, or Interact with the other thumb.</p><p><strong>Calculus</strong> · A crossing is continuous when the two one-sided limits agree with the height at the join.</p><p><strong>Credits</strong> · Original knight, map, effects, and score. Dungeon props and creatures adapted from supplied CC0 packs. Lesson reference: MATH 101, Chapter 4, Limits and Continuity.</p>',[
       ['Back',()=>change(backView),true]
     ]);
   } else if (view === 'lever') {
@@ -428,7 +438,7 @@ function strike() {
     m.wind=m.lunge=0;
     m.rest=.7;
     burst(m.x,m.y,'#d7a6db',10);
-    if (!m.hp) announce('Shade defeated.');
+    if (!m.hp) announce('Creature defeated.');
   }
 }
 function updateMonsters(dt,dashing) {
@@ -444,7 +454,7 @@ function updateMonsters(dt,dashing) {
       const x=m.x+m.dx*225*dt, y=m.y+m.dy*225*dt;
       if (accessible(x,m.y)) m.x=x;
       if (accessible(m.x,y)) m.y=y;
-      if (!dashing && distance(m.x,m.y,player)<20) hurt('A shade struck. Watch for its red warning.');
+      if (!dashing && distance(m.x,m.y,player)<20) hurt('A creature struck. Watch for the red warning.');
       if (m.lunge<=0) m.rest=1;
     } else if (m.rest<=0 && range<89 && range>0) {
       m.wind=.55-player.level*.07;
@@ -465,7 +475,7 @@ function updateMonsters(dt,dashing) {
   }
 }
 function nearObject() {
-  return Object.entries(objects).filter(([name,o])=>distance(player.x,player.y,o)<(name==='artifact'?39:35))
+  return Object.entries(objects).filter(([name,o])=>!o.opened && distance(player.x,player.y,o)<(name==='artifact'?39:35))
     .sort((a,b)=>distance(player.x,player.y,a[1])-distance(player.x,player.y,b[1]))[0];
 }
 function interact() {
@@ -477,6 +487,15 @@ function interact() {
     case 'lantern': change('tutorial'); break;
     case 'lever': change('lever'); break;
     case 'tablet': infoBack='play'; change('math'); break;
+    case 'chest':
+      if (!nearby[1].opened && player.hp<3) {
+        nearby[1].opened=true;
+        player.hp++;
+        burst(player.x,player.y,'#b8e4ab',12);
+        announce('Supply chest restored one heart.');
+        cue(587);
+      } else if (!nearby[1].opened) announce('Health full. The supplies will be here if you need them.');
+      break;
     case 'ladder':
       if (aligned()) {
         reset(floorCheckpoint(player.level+1,0));
@@ -691,6 +710,9 @@ function drawFloor([l,t,r,b],index) {
       if (variation>.82) rect(x+3,y+2,9,2,'#47534b');
     }
   }
+  ctx.globalAlpha=.48;
+  const tile=['moss','stone','dirt'][player.level];
+  for(let y=t+5;y<b;y+=64) for(let x=l;x<r;x+=64) sprite(tile,x,y,64,64);
   ctx.restore();
 }
 function lantern(x,y) {
@@ -700,12 +722,14 @@ function lantern(x,y) {
   rect(x-4,y-13,9,7,'#5f5141');
   rect(x-2,y-12,5,5,'#f6c783');
   rect(x,y-11,1,3,'#fff0bd');
+  sprite(player.level===2?'soul':'torch',x-14,y-27,28,28,Math.floor(elapsed*8));
 }
 function drawPillar([l,t,r,b]) {
   rect(l+5,b-3,r-l+12,8,'#15232a');
   rect(l,t+5,r-l,b-t,'#17252d');
   rect(l+2,t,r-l-4,9,'#53676a');
   rect(l+3,t+10,4,b-t-12,'#33454a');
+  sprite(player.level===2?'rubble':'pillar',l-4,t-16,r-l+8,b-t+16);
 }
 function deckOffset(x,height) {
   const modelX = 2+(x-seam)/(seam-bridge.left)*2;
@@ -777,6 +801,7 @@ function drawTrap([x,y,radius,offset,kind]) {
   }
   rect(x-10,y-7,20,14,'#171e24');
   for(let i=-6;i<=6;i+=4) rect(x+i,y-5,2,10,'#726253');
+  if(kind==='spikes') sprite('spike',x-24,y-28,48,48,active?Math.floor((phase-2.35)*12)%6:0);
   if(active) {
     for(let i=0;i<9;i++) {
       const px=x+seed(i*411+6)*radius*1.5-radius*.75;
@@ -795,15 +820,23 @@ function drawMonster(m) {
     rect(x-1,y-31,3,8,'#ffaf95');rect(x-1,y-21,3,3,'#ffaf95');
   }
   rect(x-12,y+1,24,5,'#101820');
-  polygon([[x-13,y+2],[x-10,y-13],[x-4,y-19],[x+6,y-16],[x+12,y-7],[x+13,y+3]],'#725781');
-  rect(x-6,y-12,4,3,'#f7c8d3');rect(x+3,y-12,4,3,'#f7c8d3');
+  if (!atlas.complete || !atlas.naturalWidth) {
+    polygon([[x-13,y+2],[x-10,y-13],[x-4,y-19],[x+6,y-16],[x+12,y-7],[x+13,y+3]],'#725781');
+    rect(x-6,y-12,4,3,'#f7c8d3');rect(x+3,y-12,4,3,'#f7c8d3');
+  } else {
+    sprite(player.level===1?'jelly':m.lunge>0?'slam':'golem',x-21,y-36,42,42,Math.floor(elapsed*9));
+  }
 }
 
 function drawObjects() {
   for(const [x,y] of level.lanterns) lantern(x,y);
   const marker=objects.lantern;
   if(marker) { lantern(marker.x,marker.y); diamond(marker.x,marker.y-23,4,'#f6c783'); }
-  const {lever,tablet,artifact,ladder}=objects;
+  const {lever,tablet,artifact,ladder,chest}=objects;
+  if(chest) {
+    glow(chest.x,chest.y,23,'#e8a87135');
+    sprite(chest.opened?'openChest':'chest',chest.x-20,chest.y-30,40,37);
+  }
   rect(tablet.x-7,tablet.y-10,14,14,'#6e827e');
   rect(tablet.x-4,tablet.y-7,8,2,'#27363b');
   rect(tablet.x-4,tablet.y-3,6,2,'#27363b');
@@ -811,7 +844,8 @@ function drawObjects() {
   rect(lever.x-10,lever.y-5,20,9,'#4d5859');
   rect(lever.x-5,lever.y-7,10,4,'#171e26');
   line(lever.x,lever.y-5,lever.x+(player.b-1)*7,lever.y-16,'#e1bd8e');
-  diamond(lever.x+(player.b-1)*7,lever.y-16,4,'#f4bd76');
+  sprite(player.b===1?'leverOn':'leverOff',lever.x-18,lever.y-31,36,36);
+  diamond(lever.x+(player.b-1)*7,lever.y-20,4,'#f4bd76');
   if(ladder) {
     const {x,y}=ladder;
     glow(x,y,44,'#9bfab249');
@@ -820,12 +854,14 @@ function drawObjects() {
     rect(x-9,y-16,3,27,'#c2976e');
     rect(x+6,y-16,3,27,'#c2976e');
     for(let i=-12;i<=8;i+=5) rect(x-8,y+i,16,2,'#e3b98a');
+    sprite('stairs',x-26,y-27,52,49);
     polygon([[x-5,y+19],[x+5,y+19],[x,y+25]],'#b3f3ba');
   }
   if(!artifact) return;
   glow(artifact.x,artifact.y-8,40,'#9bfab256');
   rect(artifact.x-12,artifact.y-1,24,10,'#53635b');
   rect(artifact.x-9,artifact.y-4,18,5,'#8a9e88');
+  sprite('altar',artifact.x-28,artifact.y-33,56,44);
   const bob = Math.sin(elapsed*3)*2;
   diamond(artifact.x,artifact.y-11+bob,9,'#77c99d');
   diamond(artifact.x,artifact.y-13+bob,5,'#d3fac1');
@@ -843,9 +879,12 @@ function drawPlayer() {
   rect(x+2,baseY-2-stride,4,6,'#15242b');
   rect(x-8,baseY-12,16,12,'#345c62');
   rect(x-5,baseY-11,10,10,'#4c8580');
-  rect(x-7,baseY-20,14,10,'#9ac7b4');
-  rect(x-5,baseY-22,10,4,'#c0dfc7');
-  rect(x+(heading[0]<0?-6:0),baseY-16,6,3,'#24373c');
+  polygon([[x-8,baseY-13],[x-8,baseY-4],[x-16,baseY+1],[x-12,baseY-12]],'#7d434e');
+  rect(x-7,baseY-20,14,10,'#71849d');
+  rect(x-5,baseY-22,10,4,'#a2b4c8');
+  rect(x-6,baseY-11,12,2,'#414f67');
+  rect(x+(heading[0]<0?-6:0),baseY-16,6,3,'#172139');
+  rect(x+(heading[0]<0?-5:1),baseY-15,4,1,'#fff2d0');
   rect(x+6,baseY-9,5,6,'#f0be82');
   ctx.restore();
   if(swing>0) {
@@ -856,6 +895,7 @@ function drawPlayer() {
 }
 function render() {
   camera();
+  ctx.imageSmoothingEnabled=false;
   ctx.setTransform(1,0,0,1,0,0);
   rect(0,0,canvas.width,canvas.height,['#0e161e','#19171c','#15131f'][player.level]);
   ctx.setTransform(zoom,0,0,zoom,-camX*zoom,-camY*zoom);

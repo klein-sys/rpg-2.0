@@ -4,7 +4,7 @@ A short single-player top-down browser adventure for MATH 101. Learn the control
 
 ## Run and play
 
-Open [dist/index.html](dist/index.html) in a current desktop browser. Keep the dist/assets folder beside the HTML file for the title artwork. The game has no external dependencies. To play on Android, serve the dist folder over HTTP or HTTPS and open that address in the phone browser. The game fills the viewport. Settings includes a Fullscreen toggle where the browser permits it.
+Open [dist/index.html](dist/index.html) in a current desktop browser. Keep the dist/assets folder beside the HTML file for the title artwork and dungeon sprites. The game has no external dependencies. To play on Android, serve the dist folder over HTTP or HTTPS and open that address in the phone browser. The game fills the viewport. Settings includes a Fullscreen toggle where the browser permits it.
 
 | Action | Desktop | Touch |
 | --- | --- | --- |
@@ -14,7 +14,7 @@ Open [dist/index.html](dist/index.html) in a current desktop browser. Keep the d
 | Strike | J | Attack |
 | Pause or go back | Esc | Pause or Back |
 
-Amber circles warn of steam bursts and spikes. Red arrows warn of shade lunges. Walk around danger, dash through it, or face a shade and strike within reach. At zero health, choose **Retry checkpoint**. Checkpoints are recorded when you enter a floor and when its bridge aligns. Each ladder starts the next floor at full health. **Resume** preserves the current run. **Continue** restores the saved checkpoint. Volume controls persist in browsers that allow local storage.
+Amber circles warn of steam bursts and spikes. Red arrows warn of creature lunges. Walk around danger, dash through it, or face a creature and strike within reach. At zero health, choose **Retry checkpoint**. Checkpoints are recorded when you enter a floor and when its bridge aligns. Each ladder starts the next floor at full health. Supply chests on the deeper floors restore one heart when opened while injured. **Resume** preserves the current run. **Continue** restores the saved checkpoint. Volume controls persist in browsers that allow local storage.
 
 ## Classroom demo
 
@@ -25,4 +25,4 @@ Amber circles warn of steam bursts and spikes. Red arrows warn of shade lunges. 
 
 ## Credits
 
-Original game, character sprites, map, interface, sound effects, and synthesized looping score created for Slopefall. The lantern knight title illustration was generated for this game. The art direction draws on the compact top-down readability of Soul Knight and the shadowed atmosphere of Hollow Knight. Course references are MATH 101 Chapter 4, *Limits and Continuity*, and the *Semestral Project Guidelines*. Basic Trigonometric Derivatives is reserved as a separate concept for a future revision.
+Original game, knight sprite, map, interface, sound effects, and synthesized looping score created for Slopefall. The knight armor uses colors from the supplied Knight Studio preset. Dungeon props, floor textures, and trap frames come from Medieval + Dungeon Pixel Bundle (CC0). Void Abyss Jelly and Magma Rune Golem animations come from Fantasy Creatures Bundle (CC0 1.0). The lantern knight title illustration was generated for this game. The art direction draws on the compact top-down readability of Soul Knight and the shadowed atmosphere of Hollow Knight. Course references are MATH 101 Chapter 4, *Limits and Continuity*, and the *Semestral Project Guidelines*. Basic Trigonometric Derivatives is reserved as a separate concept for a future revision.
